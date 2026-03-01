@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>과일 스트룹 게임</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: #1e1e2e;
+  font-family: 'Segoe UI', 'Malgun Gothic', '맑은 고딕', sans-serif;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  overflow: hidden;
+  user-select: none;
+}
+
+#game-container {
+  width: 720px;
+  height: 560px;
+  position: relative;
+  background: #2a2a3d;
+  border-radius: 24px;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+  overflow: hidden;
+}
+
+.screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.3s;
+}
+.screen.hidden { display: none; }
+
+/* ── 시작 화면 ── */
+#start-screen .title {
+  font-size: 46px;
+  font-weight: 900;
+  margin-bottom: 24px;
+  background: linear-gradient(135deg, #ff6b6b, #ffd93d, #6bcb77, #4d96ff, #9b59b6);
+  background-size: 300% 300%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: rainbow 3s ease infinite;
+}
+@keyframes rainbow {
+  0%,100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+#start-screen .desc {
+  color: #b0b0c0;
+  font-size: 18px;
+  text-align: center;
+  line-height: 1.7;
+  margin-bottom: 10px;
+}
+#start-screen .rules {
+  color: #888;
+  font-size: 15px;
+  text-align: center;
+  line-height: 1.6;
+  margin-bottom: 20px;
+}
+#start-screen .example {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 32px;
+  font-size: 20px;
+  color: #d0d0e0;
+}
+#start-screen .example .demo-fruit {
+  font-size: 28px;
+  font-weight: 800;
+  color: #fff;
+  padding: 6px 18px;
+  border-radius: 10px;
+}
+.btn {
+  padding: 14px 44px;
+  border: none;
+  border-radius: 14px;
+  font-size: 22px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.1s, box-shadow 0.1s;
+  color: #fff;
+}
+.btn:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,0.3); }
+.btn:active { transform: translateY(0); }
+.btn-start { background: linear-gradient(135deg, #27ae60, #2ecc71); }
+.btn-retry { background: linear-gradient(135deg, #27ae60, #2ecc71); }
+.btn-next { background: linear-gradient(135deg, #3498db, #2980b9); }
+
+/* ── 게임 화면 ── */
+#game-screen {
+  justify-content: flex-start;
+  padding: 24px 32px;
+}
+.hud {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  margin-bottom: 8px;
+}
+.hud-item {
+  font-size: 20px;
+  font-weight: 700;
+  color: #e0e0ee;
+}
+.hud-item.combo-hot { color: #ffd93d; font-size: 24px; }
+
+/* 타이머 바 */
+.timer-bar-container {
+  width: 100%;
+  height: 14px;
+  background: #1a1a2a;
+  border-radius: 7px;
+  margin-bottom: 12px;
+  overflow: hidden;
+  position: relative;
+}
+.timer-bar {
+  height: 100%;
+  border-radius: 7px;
+  transition: width 0.05s linear;
+  background: linear-gradient(90deg, #2ecc71, #27ae60);
+}
+.timer-bar.warn { background: linear-gradient(90deg, #f39c12, #e67e22); }
+.timer-bar.danger { background: linear-gradient(90deg, #e74c3c, #c0392b); animation: barPulse 0.3s infinite; }
+@keyframes barPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.6; } }
+
+/* 진행도 */
+.progress-dots {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  margin-bottom: 10px;
+}
+.dot {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid #555;
+  background: #333;
+  transition: all 0.2s;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: transparent;
+}
+.dot.correct { background: #2ecc71; border-color: #27ae60; color: #fff; }
+.dot.wrong { background: #e74c3c; border-color: #c0392b; color: #fff; }
+.dot.current { border-color: #fff; box-shadow: 0 0 8px rgba(255,255,255,0.4); transform: scale(1.15); }
+.dot.timeout { background: #e67e22; border-color: #d35400; color: #fff; }
+
+.fruit-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+}
+.fruit-text {
+  font-size: 72px;
+  font-weight: 900;
+  color: #fff;
+  padding: 12px 48px;
+  border-radius: 18px;
+  text-shadow: 1px 1px 3px rgba(0,0,0,0.3);
+  animation: wobble 2s ease-in-out infinite;
+}
+@keyframes wobble {
+  0%,100% { transform: translateY(0) rotate(0deg); }
+  25% { transform: translateY(-4px) rotate(1deg); }
+  75% { transform: translateY(4px) rotate(-1deg); }
+}
+.feedback {
+  font-size: 24px;
+  font-weight: 700;
+  height: 32px;
+  transition: opacity 0.4s;
+}
+.feedback.correct { color: #6bcb77; }
+.feedback.wrong { color: #ff6b6b; }
+.feedback.timeout { color: #e67e22; }
+.unlock-msg {
+  font-size: 18px;
+  font-weight: 600;
+  color: #ffd93d;
+  height: 24px;
+  animation: unlockPop 0.5s ease;
+}
+@keyframes unlockPop {
+  0% { transform: scale(0.5); opacity: 0; }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); opacity: 1; }
+}
+.buttons-area {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 8px;
+}
+.color-btn {
+  width: 100px;
+  height: 52px;
+  border: 3px solid rgba(255,255,255,0.2);
+  border-radius: 12px;
+  font-size: 19px;
+  font-weight: 800;
+  color: #fff;
+  cursor: pointer;
+  transition: transform 0.08s, border-color 0.1s, box-shadow 0.1s;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.4);
+  position: relative;
+}
+.color-btn:hover {
+  transform: scale(1.08);
+  border-color: rgba(255,255,255,0.6);
+  box-shadow: 0 0 16px rgba(255,255,255,0.2);
+}
+.color-btn:active { transform: scale(0.95); }
+.color-btn .key-hint {
+  position: absolute;
+  top: -8px; right: -6px;
+  background: #444; color: #ccc;
+  font-size: 11px; font-weight: 600;
+  width: 20px; height: 20px;
+  border-radius: 5px;
+  display: flex; align-items: center; justify-content: center;
+}
+.bottom-hint {
+  margin-top: 10px;
+  font-size: 14px;
+  color: #555568;
+}
+
+/* ── 스테이지 클리어 화면 ── */
+#clear-screen { background: rgba(20, 20, 35, 0.97); }
+#clear-screen .clear-title {
+  font-size: 42px;
+  font-weight: 900;
+  color: #ffd93d;
+  margin-bottom: 16px;
+}
+#clear-screen .clear-stats {
+  font-size: 22px;
+  color: #c0c0d0;
+  line-height: 1.8;
+  text-align: center;
+  margin-bottom: 8px;
+}
+#clear-screen .clear-result {
+  font-size: 18px;
+  color: #aaa;
+  margin-bottom: 24px;
+}
+#clear-screen .speed-info {
+  font-size: 16px;
+  color: #e67e22;
+  margin-bottom: 20px;
+}
+
+/* ── 게임오버 / 클리어 화면 ── */
+#over-screen .over-title {
+  font-size: 48px;
+  font-weight: 900;
+  margin-bottom: 20px;
+}
+#over-screen .final-score {
+  font-size: 36px;
+  font-weight: 800;
+  color: #fff;
+  margin-bottom: 12px;
+}
+#over-screen .stats {
+  font-size: 20px;
+  color: #b0b0c0;
+  line-height: 1.7;
+  text-align: center;
+  margin-bottom: 8px;
+}
+#over-screen .high-score {
+  font-size: 20px;
+  font-weight: 700;
+  color: #ffd93d;
+  margin-bottom: 32px;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(4px); }
+}
+@keyframes clearBounce {
+  0% { transform: scale(0.3); opacity: 0; }
+  60% { transform: scale(1.1); }
+  100% { transform: scale(1); opacity: 1; }
+}
+</style>
+</head>
+<body>
+
+<div id="game-container">
+  <!-- 시작 화면 -->
+  <div id="start-screen" class="screen">
+    <div class="title">과일 스트룹 게임</div>
+    <div class="desc">
+      과일 이름이 엉뚱한 배경색으로 나타납니다!<br>
+      과일의 <b>진짜 색깔</b> 버튼을 눌러주세요!
+    </div>
+    <div class="rules">
+      총 10 스테이지 | 스테이지당 10문제<br>
+      7개 이상 맞추면 다음 스테이지!<br>
+      스테이지가 올라갈수록 카운트다운이 빨라집니다!
+    </div>
+    <div class="example">
+      <span>예)</span>
+      <span class="demo-fruit" style="background:#4d96ff;">사과</span>
+      <span>→</span>
+      <span class="demo-fruit" style="background:#e63946;">빨강</span>
+      <span>클릭!</span>
+    </div>
+    <button class="btn btn-start" onclick="startGame()">게임 시작</button>
+  </div>
+
+  <!-- 게임 화면 -->
+  <div id="game-screen" class="screen hidden">
+    <div class="hud">
+      <div class="hud-item" id="hud-stage">Stage 1</div>
+      <div class="hud-item" id="hud-score">점수: 0</div>
+      <div class="hud-item" id="hud-combo">콤보: x0</div>
+    </div>
+    <div class="timer-bar-container">
+      <div class="timer-bar" id="timer-bar"></div>
+    </div>
+    <div class="progress-dots" id="progress-dots"></div>
+    <div class="fruit-area">
+      <div class="fruit-text" id="fruit-text"></div>
+      <div class="feedback" id="feedback"></div>
+      <div class="unlock-msg" id="unlock-msg"></div>
+    </div>
+    <div class="buttons-area" id="buttons-area"></div>
+    <div class="bottom-hint">키보드: 1~6번 키로도 입력 가능</div>
+  </div>
+
+  <!-- 스테이지 클리어 화면 -->
+  <div id="clear-screen" class="screen hidden">
+    <div class="clear-title" id="clear-title"></div>
+    <div class="clear-stats" id="clear-stats"></div>
+    <div class="clear-result" id="clear-result"></div>
+    <div class="speed-info" id="speed-info"></div>
+    <button class="btn btn-next" id="clear-btn"></button>
+  </div>
+
+  <!-- 게임오버 화면 -->
+  <div id="over-screen" class="screen hidden">
+    <div class="over-title" id="over-title">게임 오버!</div>
+    <div class="final-score" id="final-score"></div>
+    <div class="stats" id="stats"></div>
+    <div class="high-score" id="high-score"></div>
+    <button class="btn btn-retry" onclick="startGame()">다시 하기</button>
+  </div>
+</div>
+
+<script>
+// ── 과일-색상 데이터 ──
+const FRUITS = [
+  { name: '사과',    color: '#e63946', colorName: '빨강' },
+  { name: '바나나',  color: '#f4d03f', colorName: '노랑' },
+  { name: '블루베리', color: '#3a86ff', colorName: '파랑' },
+  { name: '오렌지',  color: '#ff8c00', colorName: '주황' },
+  { name: '수박',    color: '#2ecc71', colorName: '초록' },
+  { name: '포도',    color: '#8e44ad', colorName: '보라' },
+];
+
+const TOTAL_STAGES = 10;
+const QUESTIONS_PER_STAGE = 10;
+const PASS_THRESHOLD = 7;
+
+// 스테이지별 제한시간 (초) — 점점 빨라짐
+const STAGE_TIMES = [5.0, 4.5, 4.0, 3.5, 3.0, 2.5, 2.2, 1.9, 1.6, 1.3];
+
+// 스테이지별 해금 과일 수
+function getFruitCount(stage) {
+  if (stage <= 2) return 3;
+  if (stage <= 4) return 4;
+  if (stage <= 6) return 5;
+  return 6;
+}
+
+// ── 게임 상태 ──
+let score = 0;
+let combo = 0;
+let maxCombo = 0;
+let totalCorrect = 0;
+let stage = 1;
+let questionIdx = 0;       // 현재 스테이지 내 문제 번호 (0~9)
+let stageCorrect = 0;      // 현재 스테이지 정답 수
+let currentFruitIdx = 0;
+let displayColorIdx = 0;
+let questionTimeLimit = 0;  // 현재 문제 제한시간
+let questionStartTime = 0;
+let timerRAF = null;
+let answered = false;       // 현재 문제 답변 여부
+let feedbackTimeout = null;
+let unlockTimeout = null;
+let highScore = parseInt(localStorage.getItem('stroopHighScore2') || '0');
+let stageResults = [];      // 각 문제 결과: 'correct', 'wrong', 'timeout'
+
+// ── DOM ──
+const startScreen  = document.getElementById('start-screen');
+const gameScreen   = document.getElementById('game-screen');
+const clearScreen  = document.getElementById('clear-screen');
+const overScreen   = document.getElementById('over-screen');
+const hudStage     = document.getElementById('hud-stage');
+const hudScore     = document.getElementById('hud-score');
+const hudCombo     = document.getElementById('hud-combo');
+const timerBar     = document.getElementById('timer-bar');
+const progressDots = document.getElementById('progress-dots');
+const fruitText    = document.getElementById('fruit-text');
+const feedbackEl   = document.getElementById('feedback');
+const unlockEl     = document.getElementById('unlock-msg');
+const buttonsArea  = document.getElementById('buttons-area');
+const clearTitle   = document.getElementById('clear-title');
+const clearStats   = document.getElementById('clear-stats');
+const clearResult  = document.getElementById('clear-result');
+const speedInfo    = document.getElementById('speed-info');
+const clearBtn     = document.getElementById('clear-btn');
+const overTitle    = document.getElementById('over-title');
+const finalScore   = document.getElementById('final-score');
+const statsEl      = document.getElementById('stats');
+const highScoreEl  = document.getElementById('high-score');
+
+// ── 사운드 ──
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+function playTone(frequencies, durations, type = 'sine') {
+  let t = audioCtx.currentTime;
+  for (let i = 0; i < frequencies.length; i++) {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = type;
+    osc.frequency.value = frequencies[i];
+    gain.gain.setValueAtTime(0.3, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + durations[i]);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start(t);
+    osc.stop(t + durations[i]);
+    t += durations[i] * 0.7;
+  }
+}
+function playCorrect() { playTone([880, 1100, 1320], [0.1, 0.08, 0.08]); }
+function playWrong()   { playTone([300, 200], [0.12, 0.15], 'square'); }
+function playTimeout() { playTone([400, 300, 200], [0.08, 0.08, 0.12], 'triangle'); }
+function playStageClear() { playTone([660, 880, 1100, 1320], [0.12, 0.1, 0.1, 0.15]); }
+function playGameClear()  { playTone([523, 659, 784, 1047, 1319], [0.15, 0.12, 0.12, 0.12, 0.2]); }
+
+// ── 화면 전환 ──
+function showScreen(screen) {
+  [startScreen, gameScreen, clearScreen, overScreen].forEach(s => s.classList.add('hidden'));
+  screen.classList.remove('hidden');
+}
+
+// ── 셔플 ──
+function shuffleArray(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+let buttonOrder = [];
+
+function rebuildButtonsShuffled() {
+  buttonsArea.innerHTML = '';
+  const count = getFruitCount(stage);
+  const posOrder = [];
+  for (let i = 0; i < count; i++) posOrder.push(i);
+  buttonOrder = shuffleArray(posOrder);
+
+  const bgOrder = shuffleArray(posOrder);
+  for (let i = 0; i < count; i++) {
+    if (bgOrder[i] === buttonOrder[i]) {
+      const swap = (i + 1) % count;
+      [bgOrder[i], bgOrder[swap]] = [bgOrder[swap], bgOrder[i]];
+    }
+  }
+
+  for (let pos = 0; pos < count; pos++) {
+    const fruitIdx = buttonOrder[pos];
+    const btn = document.createElement('button');
+    btn.className = 'color-btn';
+    btn.style.background = FRUITS[bgOrder[pos]].color;
+    btn.innerHTML = FRUITS[fruitIdx].colorName + '<span class="key-hint">' + (pos + 1) + '</span>';
+    btn.addEventListener('click', () => onColorClick(fruitIdx));
+    btn.dataset.fruitIdx = fruitIdx;
+    buttonsArea.appendChild(btn);
+  }
+}
+
+// ── 진행도 점 ──
+function buildDots() {
+  progressDots.innerHTML = '';
+  stageResults = [];
+  for (let i = 0; i < QUESTIONS_PER_STAGE; i++) {
+    const dot = document.createElement('div');
+    dot.className = 'dot';
+    progressDots.appendChild(dot);
+    stageResults.push(null);
+  }
+  updateDots();
+}
+
+function updateDots() {
+  const dots = progressDots.querySelectorAll('.dot');
+  for (let i = 0; i < QUESTIONS_PER_STAGE; i++) {
+    dots[i].className = 'dot';
+    if (stageResults[i] === 'correct') {
+      dots[i].classList.add('correct');
+      dots[i].textContent = 'O';
+    } else if (stageResults[i] === 'wrong') {
+      dots[i].classList.add('wrong');
+      dots[i].textContent = 'X';
+    } else if (stageResults[i] === 'timeout') {
+      dots[i].classList.add('timeout');
+      dots[i].textContent = '!';
+    }
+    if (i === questionIdx && stageResults[i] === null) {
+      dots[i].classList.add('current');
+    }
+  }
+}
+
+// ── HUD ──
+function updateHUD() {
+  hudStage.textContent = 'Stage ' + stage;
+  hudScore.textContent = '점수: ' + score;
+  hudCombo.textContent = '콤보: x' + combo;
+  hudCombo.classList.toggle('combo-hot', combo >= 3);
+}
+
+// ── 타이머 바 ──
+function startQuestionTimer() {
+  questionTimeLimit = STAGE_TIMES[stage - 1];
+  questionStartTime = performance.now();
+  answered = false;
+
+  function tick() {
+    if (answered) return;
+    const elapsed = (performance.now() - questionStartTime) / 1000;
+    const remaining = Math.max(0, questionTimeLimit - elapsed);
+    const pct = (remaining / questionTimeLimit) * 100;
+
+    timerBar.style.width = pct + '%';
+    timerBar.className = 'timer-bar';
+    if (pct < 25) timerBar.classList.add('danger');
+    else if (pct < 50) timerBar.classList.add('warn');
+
+    if (remaining <= 0) {
+      onTimeout();
+      return;
+    }
+    timerRAF = requestAnimationFrame(tick);
+  }
+  timerRAF = requestAnimationFrame(tick);
+}
+
+function stopTimer() {
+  answered = true;
+  if (timerRAF) cancelAnimationFrame(timerRAF);
+}
+
+// ── 시간 초과 ──
+function onTimeout() {
+  stopTimer();
+  combo = 0;
+  stageResults[questionIdx] = 'timeout';
+  updateDots();
+
+  feedbackEl.textContent = '시간 초과!';
+  feedbackEl.className = 'feedback timeout';
+  feedbackEl.style.opacity = '1';
+  playTimeout();
+
+  const container = document.getElementById('game-container');
+  container.style.animation = 'none';
+  container.offsetHeight;
+  container.style.animation = 'shake 0.3s ease';
+
+  setTimeout(() => {
+    feedbackEl.style.opacity = '0';
+    advanceQuestion();
+  }, 600);
+}
+
+// ── 다음 문제 / 스테이지 전환 ──
+function advanceQuestion() {
+  questionIdx++;
+  if (questionIdx >= QUESTIONS_PER_STAGE) {
+    endStage();
+  } else {
+    nextQuestion();
+  }
+}
+
+// ── 다음 문제 출제 ──
+function nextQuestion() {
+  const count = getFruitCount(stage);
+  currentFruitIdx = Math.floor(Math.random() * count);
+
+  if (count > 1) {
+    do {
+      displayColorIdx = Math.floor(Math.random() * count);
+    } while (displayColorIdx === currentFruitIdx);
+  } else {
+    displayColorIdx = 0;
+  }
+
+  fruitText.textContent = FRUITS[currentFruitIdx].name;
+  fruitText.style.background = FRUITS[displayColorIdx].color;
+  fruitText.style.color = '#fff';
+  feedbackEl.style.opacity = '0';
+
+  rebuildButtonsShuffled();
+  updateDots();
+  updateHUD();
+  startQuestionTimer();
+}
+
+// ── 색상 버튼 클릭 ──
+function onColorClick(idx) {
+  if (gameScreen.classList.contains('hidden')) return;
+  if (answered) return;
+
+  stopTimer();
+
+  if (idx === currentFruitIdx) {
+    combo++;
+    if (combo > maxCombo) maxCombo = combo;
+    totalCorrect++;
+    stageCorrect++;
+
+    const baseScore = 10;
+    const comboBonus = (combo - 1) * 2;
+    const totalGain = baseScore + comboBonus;
+    score += totalGain;
+
+    let msg = '정답! +' + totalGain + '점';
+    if (comboBonus > 0) msg += ' (콤보 +' + comboBonus + ')';
+
+    feedbackEl.textContent = msg;
+    feedbackEl.className = 'feedback correct';
+    playCorrect();
+    stageResults[questionIdx] = 'correct';
+
+    const btns = buttonsArea.querySelectorAll('.color-btn');
+    btns.forEach(b => {
+      if (parseInt(b.dataset.fruitIdx) === idx) {
+        b.style.transform = 'scale(1.15)';
+        setTimeout(() => { b.style.transform = ''; }, 120);
+      }
+    });
+  } else {
+    combo = 0;
+    score -= 5;
+    if (score < 0) score = 0;
+
+    feedbackEl.textContent = '오답! -5점';
+    feedbackEl.className = 'feedback wrong';
+    playWrong();
+    stageResults[questionIdx] = 'wrong';
+
+    const container = document.getElementById('game-container');
+    container.style.animation = 'none';
+    container.offsetHeight;
+    container.style.animation = 'shake 0.3s ease';
+  }
+
+  feedbackEl.style.opacity = '1';
+  updateDots();
+  updateHUD();
+
+  setTimeout(() => {
+    feedbackEl.style.opacity = '0';
+    advanceQuestion();
+  }, 500);
+}
+
+// ── 스테이지 종료 ──
+function endStage() {
+  stopTimer();
+  const passed = stageCorrect >= PASS_THRESHOLD;
+
+  if (passed && stage >= TOTAL_STAGES) {
+    // 전체 클리어!
+    playGameClear();
+    showScreen(overScreen);
+    overTitle.textContent = '축하합니다!';
+    overTitle.style.color = '#ffd93d';
+    finalScore.textContent = '전체 클리어! 점수: ' + score;
+    const wrong = (stage * QUESTIONS_PER_STAGE) - totalCorrect;
+    statsEl.textContent = '정답: ' + totalCorrect + '개  |  오답/시간초과: ' + wrong + '개  |  최고 콤보: x' + maxCombo;
+
+    let isNewHigh = false;
+    if (score > highScore) {
+      highScore = score;
+      localStorage.setItem('stroopHighScore2', highScore.toString());
+      isNewHigh = true;
+    }
+    highScoreEl.textContent = isNewHigh ? '★ 새로운 최고 기록! ★' : '최고 기록: ' + highScore;
+    return;
+  }
+
+  if (passed) {
+    // 스테이지 클리어
+    playStageClear();
+    showScreen(clearScreen);
+    clearTitle.textContent = 'Stage ' + stage + ' 클리어!';
+    clearTitle.style.animation = 'clearBounce 0.5s ease';
+    clearStats.textContent = '정답: ' + stageCorrect + ' / ' + QUESTIONS_PER_STAGE + '\n현재 점수: ' + score;
+    clearResult.textContent = '통과 기준: ' + PASS_THRESHOLD + '개 이상 정답';
+
+    const nextTime = STAGE_TIMES[stage];
+    speedInfo.textContent = '다음 스테이지 제한시간: ' + nextTime.toFixed(1) + '초 (현재: ' + STAGE_TIMES[stage - 1].toFixed(1) + '초)';
+
+    const nextFruitCount = getFruitCount(stage + 1);
+    const currentFruitCount = getFruitCount(stage);
+    if (nextFruitCount > currentFruitCount) {
+      const newFruit = FRUITS[nextFruitCount - 1];
+      unlockEl.textContent = '★ 새 과일 해금: ' + newFruit.name + ' (' + newFruit.colorName + ') ★';
+      unlockEl.style.display = 'block';
+    } else {
+      unlockEl.style.display = 'none';
+    }
+
+    clearBtn.textContent = 'Stage ' + (stage + 1) + ' 시작';
+    clearBtn.onclick = () => {
+      stage++;
+      startStage();
+    };
+  } else {
+    // 실패
+    playWrong();
+    showScreen(overScreen);
+    overTitle.textContent = '게임 오버!';
+    overTitle.style.color = '#ff6b6b';
+    finalScore.textContent = 'Stage ' + stage + ' 실패 | 점수: ' + score;
+    statsEl.textContent = '스테이지 정답: ' + stageCorrect + ' / ' + QUESTIONS_PER_STAGE + ' (필요: ' + PASS_THRESHOLD + '개)\n총 정답: ' + totalCorrect + '개  |  최고 콤보: x' + maxCombo;
+
+    let isNewHigh = false;
+    if (score > highScore) {
+      highScore = score;
+      localStorage.setItem('stroopHighScore2', highScore.toString());
+      isNewHigh = true;
+    }
+    highScoreEl.textContent = isNewHigh ? '★ 새로운 최고 기록! ★' : '최고 기록: ' + highScore;
+  }
+}
+
+// ── 스테이지 시작 ──
+function startStage() {
+  questionIdx = 0;
+  stageCorrect = 0;
+  feedbackEl.textContent = '';
+  feedbackEl.style.opacity = '0';
+  unlockEl.style.display = 'none';
+
+  buildDots();
+  showScreen(gameScreen);
+  nextQuestion();
+}
+
+// ── 게임 시작 ──
+function startGame() {
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+
+  score = 0;
+  combo = 0;
+  maxCombo = 0;
+  totalCorrect = 0;
+  stage = 1;
+
+  startStage();
+}
+
+// ── 키보드 ──
+document.addEventListener('keydown', (e) => {
+  if (!gameScreen.classList.contains('hidden') && !answered) {
+    const key = parseInt(e.key);
+    if (key >= 1 && key <= 6) {
+      const pos = key - 1;
+      if (pos < buttonOrder.length) {
+        onColorClick(buttonOrder[pos]);
+      }
+    }
+  }
+
+  if (e.code === 'Space' || e.code === 'Enter') {
+    if (!startScreen.classList.contains('hidden')) {
+      e.preventDefault();
+      startGame();
+    } else if (!overScreen.classList.contains('hidden')) {
+      e.preventDefault();
+      startGame();
+    } else if (!clearScreen.classList.contains('hidden')) {
+      e.preventDefault();
+      clearBtn.click();
+    }
+  }
+});
+</script>
+</body>
+</html>
