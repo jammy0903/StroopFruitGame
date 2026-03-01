@@ -140,4 +140,10 @@ app/build/outputs/apk/debug/app-debug.apk
 
 **🧠 두뇌 풀가동! 스테이지 10 클리어에 도전하세요! 🏆**
 
+---
+
+## 🎬 게임 플레이
+
+<img src="gameplay.gif" alt="게임 플레이 영상" width="480">
+
 </div>
